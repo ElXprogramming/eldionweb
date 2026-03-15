@@ -52,7 +52,7 @@ app.post('/api/chat', async (req, res) => {
         // 2. Ask the AI for a response
         // We are using a free Llama 3 model here for testing, but you can change this later!
         const aiResponse = await openai.chat.completions.create({
-            model: "google/gemini-2.5-flash-lite",
+            model: "nvidia/nemotron-3-super-120b-a12b:free",
             messages: [
                 { role: "system", content: "You are a helpful, concise AI assistant." },
                 { role: "user", content: userMessage }

@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css'; // This CSS file is what makes the math look pretty!
 
 // Define the shape of our message data
 type Message = {
@@ -83,7 +87,12 @@ function App() {
               maxWidth: '75%',
               lineHeight: '1.4'
             }}>
-              {msg.text}
+              <ReactMarkdown 
+                remarkPlugins={[remarkMath]} 
+                rehypePlugins={[rehypeKatex]}
+              >
+                {msg.text}
+              </ReactMarkdown>
             </div>
           );
         })}

@@ -40,40 +40,55 @@ app.get('/api/messages', async (req, res) => {
 
 // The Chat Route
 app.post('/api/chat', async (req, res) => {
-    try {
-        const userMessage = req.body.message;
-        
-        // 1. Save the USER's message to the database
-        await pool.query(
-            'INSERT INTO messages (sender, text) VALUES ($1, $2)', 
-            ['User', userMessage]
-        );
+    const userMsg = req.body.message;
 
-        // 2. Ask the AI for a response
-        // We are using a free Llama 3 model here for testing, but you can change this later!
-        const aiResponse = await openai.chat.completions.create({
-            model: "nvidia/nemotron-3-super-120b-a12b:free",
-            messages: [
-                { role: "system", content: "You are a helpful, concise AI assistant." },
-                { role: "user", content: userMessage }
-            ],
+    try {
+        // 1. Save the user's new message to the database first
+        await pool.query('INSERT INTO messages (sender, text) VALUES ($1, $2)', ['User', userMsg]);
+
+        // 2. Fetch the last 10 messages from the database to build the "memory"
+        const historyData = await pool.query(
+            'SELECT sender, text FROM messages ORDER BY id DESC LIMIT 10'
+        );
+        
+        // The DB sorts them newest first, so we reverse them to read like a normal chat log
+        const chronologicalHistory = historyData.rows.reverse();
+
+        // 3. Translate our DB format into the exact format OpenRouter expects
+        const openRouterMessages = chronologicalHistory.map((row) => ({
+            role: row.sender === 'User' ? 'user' : 'assistant',
+            content: row.text
+        }));
+
+
+        console.log("🧠 MEMORY CHECK:", openRouterMessages);
+
+
+        // 4. Send the entire conversation history to the AI!
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: "nvidia/nemotron-3-super-120b-a12b:free", // Or whatever model you are using!
+                messages: openRouterMessages
+            })
         });
 
-        // Extract the actual text from the AI's reply
-        const botReply = aiResponse.choices[0].message.content;
+        const data = await response.json();
+        const aiReply = data.choices[0].message.content;
 
-        // 3. Save the AI's reply to the database
-        await pool.query(
-            'INSERT INTO messages (sender, text) VALUES ($1, $2)', 
-            ['AI', botReply]
-        );
+        // 5. Save the AI's reply to the database
+        await pool.query('INSERT INTO messages (sender, text) VALUES ($1, $2)', ['AI', aiReply]);
 
-        // 4. Send the AI's reply back to your React frontend
-        res.json({ reply: botReply });
+        // 6. Send it back to React
+        res.json({ reply: aiReply });
 
     } catch (error) {
-        console.error("AI or Database Error:", error);
-        res.status(500).json({ error: "Something went wrong in the backend." });
+        console.error("Chat error:", error);
+        res.status(500).json({ error: "Failed to communicate with AI" });
     }
 });
 

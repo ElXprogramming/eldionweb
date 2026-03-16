@@ -19,6 +19,7 @@ function App() {
   // 1. Fetch chat history when the page loads
   useEffect(() => {
     fetch('https://eldion-backend.onrender.com/api/messages')
+    //fetch('http://localhost:5000/api/messages')
       .then(res => res.json())
       .then(data => setMessages(data))
       .catch(err => console.error("Could not load history", err));
@@ -38,6 +39,7 @@ function App() {
     try {
       // Send to backend
       const response = await fetch('https://eldion-backend.onrender.com/api/chat', {
+      //const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg })
